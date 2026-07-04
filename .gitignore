@@ -1,0 +1,11 @@
+# Assets baixados localmente (vendor-assets.sh)
+Assets/*.zip
+Assets/*.tar.xz
+Assets/.fonts/
+
+# Temporários
+tmp-sync/
+*.bak-*
+
+# Cache de clones
+.cache/
