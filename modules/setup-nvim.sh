@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Neovim: clone direto de amonetlol/nvim → ~/.config/nvim (sem matugen / theme engine)
-
 set -euo pipefail
 
 NVIM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 THEMES_NVIM="${XDG_CONFIG_HOME:-$HOME/.config}/themes/nvim"
 NVIM_REPO="https://github.com/amonetlol/nvim.git"
 
-log() { printf "[*] %s\n" "$1"; }
-ok() { printf "[OK] %s\n" "$1"; }
+log()  { printf "[*] %s\n" "$1"; }
+ok()   { printf "[OK] %s\n" "$1"; }
 warn() { printf "[AVISO] %s\n" "$1"; }
 
 # Legado: symlink ~/.config/nvim → ~/.config/themes/nvim
@@ -16,6 +15,7 @@ if [[ -L "$NVIM_DIR" ]]; then
   log "Removendo symlink legado $NVIM_DIR"
   rm -f "$NVIM_DIR"
 fi
+
 if [[ -d "$THEMES_NVIM" ]]; then
   log "Removendo $THEMES_NVIM (legado theme engine)"
   rm -rf "$THEMES_NVIM"
@@ -33,6 +33,34 @@ else
   log "Clonando $NVIM_REPO → $NVIM_DIR"
   rm -rf "$NVIM_DIR"
   git clone --depth=1 "$NVIM_REPO" "$NVIM_DIR"
+fi
+
+is_arch_based() {
+  [[ -f /etc/arch-release ]] && return 0
+  if [[ -f /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}:${ID_LIKE:-}" in
+      arch*|*:arch*|cachyos*|manjaro*|endeavouros*|garuda*)
+        return 0
+        ;;
+    esac
+  fi
+  return 1
+}
+
+# Instala os pacotes apenas se for Arch-based
+if is_arch_based; then
+  if command -v yay >/dev/null 2>&1; then
+    yay -S --needed --noconfirm \
+      nodejs npm \
+      lua51 luarocks \
+      python python-pip python-pynvim python-pipenv python-virtualenv \
+      tree-sitter-cli prettier \
+      || warn "Falha ao instalar pacotes com yay (verifique manualmente)"
+  else
+    warn "yay não encontrado — instale os pacotes manualmente se necessário"
+  fi
 fi
 
 ok "nvim em $NVIM_DIR — rode :Lazy sync na primeira abertura"
