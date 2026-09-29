@@ -9,25 +9,24 @@
 #   GTK    WhiteSur  -> ~/.themes
 #          Padrao upstream: Light e Dark, opacidade normal e solid.
 #          Pastas: WhiteSur-Light, WhiteSur-Dark, WhiteSur-Light-solid, WhiteSur-Dark-solid
-#          Libadwaita: ./install.sh -l (grava ~/.config/gtk-4.0; a variante usada
-#          e a primeira da lista, Light, quando light e dark sao instalados juntos).
-#          Tema aplicado: WhiteSur-Light
-#          Para escuro: gsettings set org.gnome.desktop.interface gtk-theme 'WhiteSur-Dark'
+#          Libadwaita: ./install.sh -l (grava ~/.config/gtk-4.0). Depois
+#          gtk.css e apontado para gtk-Dark.css.
+#          Tema aplicado: WhiteSur-Dark
 #   Icones MacTahoe  -> ~/.local/share/icons
 #          Padrao upstream: MacTahoe, MacTahoe-light, MacTahoe-dark
-#          Tema aplicado: MacTahoe
+#          Tema aplicado: MacTahoe-dark
 #   Cursor Vimix     -> ~/.local/share/icons
 #          Pastas: Vimix-cursors e Vimix-white-cursors
 #          Cursor aplicado: Vimix-cursors
 #
-# Distros: Arch (pacman), Fedora (dnf), Ubuntu/Debian (apt-get), via ID e ID_LIKE.
+# Distros: Arch (pacman), Fedora (dnf), Ubuntu/Debian (apt-get), openSUSE
+# Tumbleweed/Leap (zypper --non-interactive), via ID e ID_LIKE.
 # Fontes em ~/.local/src/rice-base (git pull --ff-only se o clone ja existir).
-# Nao cobre openSUSE.
 set -euo pipefail
 
 SRC_ROOT="${HOME}/.local/src/rice-base"
-GTK_THEME="WhiteSur-Light"
-ICON_THEME="MacTahoe"
+GTK_THEME="WhiteSur-Dark"
+ICON_THEME="MacTahoe-dark"
 CURSOR_THEME="Vimix-cursors"
 CURSOR_SIZE="24"
 
@@ -51,6 +50,7 @@ detect_family() {
     arch|archlinux) printf 'arch'; return 0 ;;
     fedora) printf 'fedora'; return 0 ;;
     ubuntu|debian|linuxmint|pop|neon|elementary) printf 'debian'; return 0 ;;
+    opensuse-tumbleweed|opensuse-leap|opensuse|suse) printf 'opensuse'; return 0 ;;
   esac
   if [[ "${like}" == *" arch "* || "${like}" == *" archlinux "* ]]; then
     printf 'arch'; return 0
@@ -61,10 +61,13 @@ detect_family() {
   if [[ "${like}" == *" ubuntu "* || "${like}" == *" debian "* ]]; then
     printf 'debian'; return 0
   fi
+  if [[ "${like}" == *" suse "* || "${like}" == *" opensuse "* ]]; then
+    printf 'opensuse'; return 0
+  fi
   return 1
 }
 
-FAMILY="$(detect_family)" || die "Distro nao suportada (ID=${ID:-?} ID_LIKE=${ID_LIKE:-}). Este script cobre Arch, Fedora e Ubuntu/Debian."
+FAMILY="$(detect_family)" || die "Distro nao suportada (ID=${ID:-?} ID_LIKE=${ID_LIKE:-}). Este script cobre Arch, Fedora, Ubuntu/Debian e openSUSE."
 
 log "Distro: ${PRETTY_NAME:-$ID} (familia ${FAMILY})"
 
@@ -106,6 +109,11 @@ install_packages() {
       sudo apt-get install -y \
         git sassc "${glib_pkg}" libglib2.0-bin libxml2-utils \
         optipng inkscape gtk2-engines-murrine gtk-update-icon-cache
+      ;;
+    opensuse)
+      sudo zypper --non-interactive install --auto-agree-with-licenses \
+        git sassc glib2-devel libxml2-tools optipng inkscape \
+        gtk2-engine-murrine gtk3
       ;;
   esac
 }
@@ -186,6 +194,9 @@ apply_settings() {
     gsettings set org.gnome.desktop.interface gtk-theme "${GTK_THEME}"
     gsettings set org.gnome.desktop.interface icon-theme "${ICON_THEME}"
     gsettings set org.gnome.desktop.interface cursor-theme "${CURSOR_THEME}"
+    if gsettings list-keys org.gnome.desktop.interface 2>/dev/null | grep -qx color-scheme; then
+      gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+    fi
     size_now=""
     if command -v dconf >/dev/null 2>&1; then
       size_now="$(dconf read /org/gnome/desktop/interface/cursor-size || true)"
@@ -206,10 +217,18 @@ apply_settings() {
     merge_ini_key "${ini}" "gtk-icon-theme-name" "${ICON_THEME}" 0
     merge_ini_key "${ini}" "gtk-cursor-theme-name" "${CURSOR_THEME}" 0
     merge_ini_key "${ini}" "gtk-cursor-theme-size" "${CURSOR_SIZE}" 1
+    merge_ini_key "${ini}" "gtk-application-prefer-dark-theme" "1" 1
     log "Atualizado ${ini}"
   done
 
-  log "Pronto. Tema claro: ${GTK_THEME}. Para escuro: gsettings set org.gnome.desktop.interface gtk-theme 'WhiteSur-Dark'"
+  local gtk4css="${HOME}/.config/gtk-4.0/gtk.css"
+  local gtk4dark="${HOME}/.config/gtk-4.0/gtk-Dark.css"
+  if [[ -f "${gtk4dark}" ]]; then
+    ln -sfn "${gtk4dark}" "${gtk4css}"
+    log "libadwaita gtk.css -> gtk-Dark.css"
+  fi
+
+  log "Pronto. Tema escuro ativo: ${GTK_THEME} / ${ICON_THEME} / ${CURSOR_THEME}"
 }
 
 install_packages
