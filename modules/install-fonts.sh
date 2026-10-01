@@ -17,7 +17,7 @@ ok() { printf "[OK] %s\n" "$1"; }
 install_pacman_fonts() {
   # shellcheck source=lib/sudo.sh
   source "$SCRIPT_DIR/lib/sudo.sh"
-  sudo pacman -S --needed --noconfirm ttf-0xproto-nerd otf-geist-mono-nerd fontconfig
+  sudo pacman -S --needed --noconfirm ttf-0xproto-nerd otf-geist-mono-nerd ttf-terminus-nerd fontconfig
   ok "ttf-0xproto-nerd + otf-geist-mono-nerd"
 }
 
