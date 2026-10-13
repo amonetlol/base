@@ -1,47 +1,47 @@
 #!/usr/bin/env bash
-# Instala ~/.bin/random-wallpapers.sh e ativa o serviço systemd do usuário.
+# Instala ~/.bin/random-wallpaper.sh e o timer systemd do usuário.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_SCRIPT="${SCRIPT_DIR}/randow-wallpapers.sh"
-SRC_SERVICE="${SCRIPT_DIR}/randow-wallpapers.service"
+ASSET_DIR="${SCRIPT_DIR}/Assets"
+SRC_SCRIPT="${ASSET_DIR}/random-wallpaper.sh"
+SRC_SERVICE="${ASSET_DIR}/random-wallpaper.service"
+SRC_TIMER="${ASSET_DIR}/random-wallpaper.timer"
 
 BIN_DIR="${HOME}/.bin"
 UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
-DEST_SCRIPT="${BIN_DIR}/random-wallpapers.sh"
-DEST_UNIT="${UNIT_DIR}/random-wallpapers.service"
-UNIT_NAME="random-wallpapers.service"
-OLD_UNIT="randow-wallpapers.service"
+DEST_SCRIPT="${BIN_DIR}/random-wallpaper.sh"
+DEST_SERVICE="${UNIT_DIR}/random-wallpaper.service"
+DEST_TIMER="${UNIT_DIR}/random-wallpaper.timer"
 
-if [[ ! -f "$SRC_SCRIPT" ]]; then
-  echo "Script de origem não encontrado: ${SRC_SCRIPT}" >&2
-  exit 1
-fi
-if [[ ! -f "$SRC_SERVICE" ]]; then
-  echo "Service de origem não encontrado: ${SRC_SERVICE}" >&2
-  exit 1
-fi
+for src in "$SRC_SCRIPT" "$SRC_SERVICE" "$SRC_TIMER"; do
+  if [[ ! -f "$src" ]]; then
+    echo "Arquivo de origem não encontrado: ${src}" >&2
+    exit 1
+  fi
+done
 
 mkdir -p "$BIN_DIR" "$UNIT_DIR"
 
 sed 's/\r$//' "$SRC_SCRIPT" > "$DEST_SCRIPT"
 chmod +x "$DEST_SCRIPT"
-
-sed -e 's/\r$//' \
-  -e 's|%h/\.bin/randow-wallpapers\.sh|%h/.bin/random-wallpapers.sh|' \
-  "$SRC_SERVICE" > "$DEST_UNIT"
+sed 's/\r$//' "$SRC_SERVICE" > "$DEST_SERVICE"
+sed 's/\r$//' "$SRC_TIMER" > "$DEST_TIMER"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 
 systemctl --user daemon-reload
 
-if systemctl --user list-unit-files --no-legend "${OLD_UNIT}" 2>/dev/null | grep -q .; then
-  systemctl --user disable --now "${OLD_UNIT}" 2>/dev/null || true
-fi
+for old in randow-wallpapers.service random-wallpapers.service \
+  randow-wallpapers.timer random-wallpapers.timer; do
+  systemctl --user disable --now "$old" 2>/dev/null || true
+done
 
-systemctl --user enable --now "${UNIT_NAME}"
+systemctl --user enable --now random-wallpaper.timer
+systemctl --user start random-wallpaper.service
 
 echo "Instalado: ${DEST_SCRIPT}"
-echo "Serviço: ${DEST_UNIT}"
-systemctl --user --no-pager --full status "${UNIT_NAME}" || true
+echo "Serviço: ${DEST_SERVICE}"
+echo "Timer: ${DEST_TIMER}"
+systemctl --user --no-pager --full status random-wallpaper.service || true
