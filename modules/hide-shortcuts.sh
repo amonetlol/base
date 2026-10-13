@@ -88,7 +88,8 @@ for name in btop "foot client" "foot server" "Hardware Locality lstopo" \
   "Navegador Zeroconf do avahi" Neovim "Preferências do Thunar" \
   "Qt V4L2 vídeo capture utility" Rofi "Rofi Theme Selector" Vim xgps xgpsspeed \
   "Utilitário de teste V4L2" Micro Alacritty "Qt6 Settings" "Qt5 Settings" \
-  "SchedExt GUI Manager" "Sobre o Xfce" Htop CMake "Btrfs Assistant" "CachyOS Hello"; do
+  "SchedExt GUI Manager" "Sobre o Xfce" Htop CMake "Btrfs Assistant" "CachyOS Hello" \
+  "Qt Widgets Designer" "Qt Linguist" "Qt D-Bus Viewer" "Qt Assistant"; do
   hide_desktop_by_name "$name"
 done
 
@@ -97,7 +98,8 @@ for f in btop.desktop footclient.desktop foot-server.desktop avahi-discover.desk
   micro.desktop Alacritty.desktop alacritty.desktop lstopo.desktop qv4l2.desktop qvidcap.desktop \
   xgps.desktop xgpsspeed.desktop thunar-settings.desktop qt6ct.desktop qt5ct.desktop \
   org.cachyos.scx-manager.desktop xfce4-about.desktop htop.desktop cmake-gui.desktop \
-  btrfs-assistant.desktop cachyos-hello.desktop; do
+  btrfs-assistant.desktop cachyos-hello.desktop designer.desktop linguist.desktop \
+  qdbusviewer.desktop assistant.desktop; do
   hide_desktop_by_filename "$f"
 done
 
