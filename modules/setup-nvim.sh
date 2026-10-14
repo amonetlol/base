@@ -1,39 +1,34 @@
 #!/usr/bin/env bash
-# Neovim: clone direto de amonetlol/nvim → ~/.config/nvim (sem matugen / theme engine)
+# Neovim: clone direto de amonetlol/nvim → ~/.config/nvim e /root/.config/nvim
+# (sem matugen / theme engine). Instala para o usuário atual E para o root.
+# Uso: bash <(curl -fsSL https://raw.githubusercontent.com/amonetlol/sh/main/modules/setup-nvim.sh)
 set -euo pipefail
 
-NVIM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
-THEMES_NVIM="${XDG_CONFIG_HOME:-$HOME/.config}/themes/nvim"
 NVIM_REPO="https://github.com/amonetlol/nvim.git"
 
 log()  { printf "[*] %s\n" "$1"; }
 ok()   { printf "[OK] %s\n" "$1"; }
 warn() { printf "[AVISO] %s\n" "$1"; }
 
-# Legado: symlink ~/.config/nvim → ~/.config/themes/nvim
-if [[ -L "$NVIM_DIR" ]]; then
-  log "Removendo symlink legado $NVIM_DIR"
-  rm -f "$NVIM_DIR"
-fi
-
-if [[ -d "$THEMES_NVIM" ]]; then
-  log "Removendo $THEMES_NVIM (legado theme engine)"
-  rm -rf "$THEMES_NVIM"
-fi
-
-if [[ -e "$NVIM_DIR" && ! -d "$NVIM_DIR/.git" ]]; then
-  warn "$NVIM_DIR existe mas não é um clone git — movendo para ${NVIM_DIR}.bak"
-  mv "$NVIM_DIR" "${NVIM_DIR}.bak"
-fi
-
-if [[ -d "$NVIM_DIR/.git" ]]; then
-  log "Atualizando $NVIM_DIR"
-  git -C "$NVIM_DIR" pull --ff-only 2>/dev/null || warn "git pull falhou — verifique manualmente"
-else
-  log "Clonando $NVIM_REPO → $NVIM_DIR"
-  rm -rf "$NVIM_DIR"
-  git clone --depth=1 "$NVIM_REPO" "$NVIM_DIR"
-fi
+# sudo com suporte a INSTALL_SUDO_PASSWORD / SUDO_ASKPASS
+sudo() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    if [[ "$1" == "-S" || "$1" == "-A" || "$1" == "-n" || "$1" == "-v" ]]; then
+      command sudo "$@"
+    else
+      command sudo -H "$@"
+    fi
+    return $?
+  fi
+  if [[ -n "${INSTALL_SUDO_PASSWORD:-}" ]]; then
+    printf '%s\n' "$INSTALL_SUDO_PASSWORD" | command sudo -S "$@"
+  elif [[ -n "${SUDO_ASKPASS:-}" ]]; then
+    export DISPLAY="${DISPLAY:-:0}"
+    command sudo -A "$@"
+  else
+    command sudo "$@"
+  fi
+}
 
 is_arch_based() {
   [[ -f /etc/arch-release ]] && return 0
@@ -49,6 +44,57 @@ is_arch_based() {
   return 1
 }
 
+# Instala/atualiza o clone do nvim para um config base (ex.: $HOME/.config ou /root/.config)
+# $1 = prefixo de comando opcional ("" para o usuário, "sudo" para o root)
+# $2 = config base (XDG_CONFIG_HOME do alvo)
+install_nvim_for() {
+  local prefix="$1"
+  local config_base="$2"
+  local nvim_dir="${config_base}/nvim"
+  local themes_dir="${config_base}/themes/nvim"
+
+  # Legado: symlink ~/.config/nvim → ~/.config/themes/nvim
+  if $prefix test -L "$nvim_dir"; then
+    log "Removendo symlink legado $nvim_dir"
+    $prefix rm -f "$nvim_dir"
+  fi
+
+  if $prefix test -d "$themes_dir"; then
+    log "Removendo $themes_dir (legado theme engine)"
+    $prefix rm -rf "$themes_dir"
+  fi
+
+  if $prefix test -e "$nvim_dir" && ! $prefix test -d "$nvim_dir/.git"; then
+    warn "$nvim_dir existe mas não é um clone git — movendo para ${nvim_dir}.bak"
+    $prefix mv "$nvim_dir" "${nvim_dir}.bak"
+  fi
+
+  if $prefix test -d "$nvim_dir/.git"; then
+    log "Atualizando $nvim_dir"
+    $prefix git -C "$nvim_dir" pull --ff-only 2>/dev/null \
+      || warn "git pull falhou — verifique manualmente"
+  else
+    log "Clonando $NVIM_REPO → $nvim_dir"
+    $prefix rm -rf "$nvim_dir"
+    $prefix git clone --depth=1 "$NVIM_REPO" "$nvim_dir"
+  fi
+
+  ok "nvim em $nvim_dir"
+}
+
+# ---------- Usuário atual ----------
+install_nvim_for "" "${XDG_CONFIG_HOME:-$HOME/.config}"
+
+# ---------- Root (apenas se não somos root) ----------
+if [[ "${EUID}" -eq 0 ]]; then
+  ok "Rodando como root — instalação do root já coberta."
+elif sudo test -d /root 2>/dev/null; then
+  log "Instalando também para root (/root/.config/nvim)..."
+  install_nvim_for "sudo" "/root/.config"
+else
+  warn "Diretório /root inacessível via sudo — instalação para root ignorada."
+fi
+
 # Instala os pacotes apenas se for Arch-based
 if is_arch_based; then
   if command -v yay >/dev/null 2>&1; then
@@ -63,4 +109,4 @@ if is_arch_based; then
   fi
 fi
 
-ok "nvim em $NVIM_DIR — rode :Lazy sync na primeira abertura"
+ok "setup-nvim finalizado — rode :Lazy sync na primeira abertura"

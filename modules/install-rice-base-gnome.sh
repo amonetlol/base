@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# install-rice-base.sh
+# rice-base.sh
 #
 # Uso:
-#   chmod +x ./install-rice-base.sh
-#   ./install-rice-base.sh
+#   bash <(curl -fsSL https://raw.githubusercontent.com/amonetlol/sh/main/modules/rice-base.sh)
 #
 # Instala e aplica, no usuario atual (sem root para os temas):
 #   GTK    WhiteSur  -> ~/.themes

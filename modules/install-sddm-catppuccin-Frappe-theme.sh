@@ -1,20 +1,62 @@
 #!/usr/bin/env bash
-# SDDM Catppuccin Frappe Blue — extrai tema corretamente.
-
+# sddm-theme — SDDM Catppuccin Frappe Blue (Arch)
+# Uso: bash <(curl -fsSL https://raw.githubusercontent.com/amonetlol/sh/main/modules/sddm-theme.sh)
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/sudo.sh
-source "$SCRIPT_DIR/lib/sudo.sh"
-# shellcheck source=lib/distro.sh
-source "$SCRIPT_DIR/lib/distro.sh"
+
+ok() { printf "[OK] %s\n" "$1"; }
+fail() { printf "[ERRO] %s\n" "$1" >&2; exit 1; }
+
+# sudo com suporte a INSTALL_SUDO_PASSWORD / SUDO_ASKPASS
+sudo() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    if [[ "$1" == "-S" || "$1" == "-A" || "$1" == "-n" || "$1" == "-v" ]]; then
+      command sudo "$@"
+    else
+      command sudo -H "$@"
+    fi
+    return $?
+  fi
+  if [[ -n "${INSTALL_SUDO_PASSWORD:-}" ]]; then
+    printf '%s\n' "$INSTALL_SUDO_PASSWORD" | command sudo -S "$@"
+  elif [[ -n "${SUDO_ASKPASS:-}" ]]; then
+    export DISPLAY="${DISPLAY:-:0}"
+    command sudo -A "$@"
+  else
+    command sudo "$@"
+  fi
+}
+
+# Grava ficheiro em path root sem heredoc+tee (sudo -S consome stdin).
+sudo_write_file() {
+  local dest="$1"
+  local tmp
+  tmp="$(mktemp)"
+  cat >"$tmp"
+  sudo mkdir -p "$(dirname "$dest")"
+  sudo cp "$tmp" "$dest"
+  rm -f "$tmp"
+}
+
+is_arch_based() {
+  [[ -f /etc/arch-release ]] && return 0
+  if [[ -f /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}:${ID_LIKE:-}" in
+      arch*|*:arch*|cachyos*|manjaro*|endeavouros*|garuda*)
+        return 0
+        ;;
+    esac
+  fi
+  return 1
+}
 
 if ! is_arch_based; then
   echo "Não é base Arch — SDDM theme ignorado."
   exit 0
 fi
 
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ASSETS="$REPO_ROOT/Assets"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/sh-assets"
 THEME_NAME="catppuccin-frappe-blue"
 SDDM_THEMES="/usr/share/sddm/themes"
 THEME_URL="https://github.com/catppuccin/sddm/releases/download/v1.1.2/catppuccin-frappe-blue-sddm.zip"
@@ -29,10 +71,10 @@ disable_other_dms() {
 }
 
 install_theme() {
-  local zip="$ASSETS/catppuccin-frappe-blue-sddm.zip"
+  local zip="$CACHE_DIR/catppuccin-frappe-blue-sddm.zip"
   local tmp
   if [[ ! -f "$zip" ]]; then
-    mkdir -p "$ASSETS"
+    mkdir -p "$CACHE_DIR"
     curl -fL "$THEME_URL" -o "$zip"
   fi
   tmp="$(mktemp -d)"
@@ -70,4 +112,4 @@ disable_other_dms
 install_theme
 configure_sddm
 sudo systemctl enable sddm
-echo "SDDM tema $THEME_NAME instalado ($(ls "$SDDM_THEMES/$THEME_NAME/Main.qml" 2>/dev/null && echo OK))"
+ok "SDDM tema $THEME_NAME instalado ($(ls "$SDDM_THEMES/$THEME_NAME/Main.qml" 2>/dev/null && echo OK))"
